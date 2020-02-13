@@ -3,6 +3,7 @@ package com.github.borisskert;
 import org.hamcrest.core.Is;
 import org.hamcrest.core.IsEqual;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -127,6 +128,24 @@ class SerialExecutingEngineTest {
 
         assertThat(commandThree.isHasBeenExecuted(), is(equalTo(true)));
         assertThat(commandThree.getExecutions(), is(equalTo(1)));
+    }
+
+    @Test
+    @Disabled
+    public void performanceTest() throws Exception {
+        long start = System.currentTimeMillis();
+
+        for(int i = 0; i < 1000; i++) {
+            engine.add(new PerformanceCommand(i));
+        }
+
+        startEngineInBackground();
+
+        engine.shutdown();
+
+        long stop = System.currentTimeMillis();
+
+        System.out.println(stop - start);
     }
 
     private void startEngineInBackground() {
