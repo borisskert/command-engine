@@ -12,11 +12,13 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 class ParallelExecutingEngineTest {
 
-    private Engine engine;
+    private BlockingQueueEngine engine;
+    private Object mutex;
 
     @BeforeEach
     public void setup() throws Exception {
-        engine = BlockingQueueEngine.parallelExecutingEngine();
+        mutex = new Object();
+        engine = (BlockingQueueEngine) BlockingQueueEngine.parallelExecutingEngine();
     }
 
     @Test
@@ -31,7 +33,7 @@ class ParallelExecutingEngineTest {
 
     @Test
     public void shouldNotAllowToStartEngineWhenAlreadyStarted() throws Exception {
-        engine.start();
+        startEngineInBackground();
 
         try {
             engine.start();
@@ -43,7 +45,7 @@ class ParallelExecutingEngineTest {
 
     @Test
     public void shouldNotAllowToAddCommandDuringShutDown() throws Exception {
-        engine.start();
+        startEngineInBackground();
         engine.shutdown();
 
         try {
@@ -61,7 +63,7 @@ class ParallelExecutingEngineTest {
         TestCommand command = new TestCommand();
         engine.add(command);
 
-        engine.start();
+        startEngineInBackground();
         engine.shutdown();
 
         assertThat(command.isHasBeenExecuted(), is(equalTo(true)));
@@ -72,7 +74,7 @@ class ParallelExecutingEngineTest {
     public void shouldRunCommandAfterStart() throws Exception {
         TestCommand command = new TestCommand();
 
-        engine.start();
+        startEngineInBackground();
         engine.add(command);
         engine.shutdown();
 
@@ -90,7 +92,7 @@ class ParallelExecutingEngineTest {
         engine.add(commandTwo);
         engine.add(commandThree);
 
-        engine.start();
+        startEngineInBackground();
         engine.shutdown();
 
         assertThat(commandOne.isHasBeenExecuted(), is(equalTo(true)));
@@ -109,7 +111,7 @@ class ParallelExecutingEngineTest {
         TestCommand commandTwo = new TestCommand();
         TestCommand commandThree = new TestCommand();
 
-        engine.start();
+        startEngineInBackground();
 
         engine.add(commandOne);
         engine.add(commandTwo);
@@ -125,5 +127,31 @@ class ParallelExecutingEngineTest {
 
         assertThat(commandThree.isHasBeenExecuted(), is(equalTo(true)));
         assertThat(commandThree.getExecutions(), is(equalTo(1)));
+    }
+
+    private void startEngineInBackground() {
+        engine.onStateChange(state -> release());
+
+        new Thread(() -> {
+            engine.start();
+        }).start();
+
+        waitForRelease();
+    }
+
+    private void waitForRelease() {
+        try {
+            synchronized (mutex) {
+                mutex.wait();
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void release() {
+        synchronized (mutex) {
+            mutex.notify();
+        }
     }
 }

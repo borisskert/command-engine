@@ -4,6 +4,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 
 public class BlockingQueueEngine implements Engine {
 
@@ -32,19 +33,12 @@ public class BlockingQueueEngine implements Engine {
             throw new IllegalStateException("You cannot start this engine cause it has been started already");
         }
 
-        state = State.RUNNING;
+        changeState(State.RUNNING);
 
-        Thread thread = new Thread(() -> {
-            release();
-            while (state == State.RUNNING || state == State.SHUTTING_DOWN) {
-                Command command = takeNextCommand();
-                executorService.submit(command::execute);
-            }
-        });
-
-        thread.start();
-
-        block();
+        while (state == State.RUNNING || state == State.SHUTTING_DOWN) {
+            Command command = takeNextCommand();
+            executorService.submit(command::execute);
+        }
     }
 
     @Override
@@ -53,31 +47,37 @@ public class BlockingQueueEngine implements Engine {
             throw new IllegalStateException("You cannot shutdown this engine cause it has not been started");
         }
 
-        state = State.SHUTTING_DOWN;
+        changeState(State.SHUTTING_DOWN);
 
         queueCommand(this::release);
 
-        block();
+        waitForRelease();
+
         executorService.shutdown();
-        state = State.HAS_BEEN_SHUT_DOWN;
+        changeState(State.HAS_BEEN_SHUT_DOWN);
     }
 
-    private void release() {
-        synchronized (synchronization) {
-            synchronization.notify();
-        }
+    private void changeState(State state) {
+        this.state = state;
+        this.listener.accept(this.state);
     }
 
     /**
      * https://stackoverflow.com/a/886799
      */
-    private void block() {
+    private void waitForRelease() {
         try {
             synchronized (synchronization) {
                 synchronization.wait();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void release() {
+        synchronized (synchronization) {
+            synchronization.notify();
         }
     }
 
@@ -109,10 +109,16 @@ public class BlockingQueueEngine implements Engine {
         return new BlockingQueueEngine(executorService);
     }
 
-    private enum State {
+    enum State {
         CREATED,
         RUNNING,
         SHUTTING_DOWN,
         HAS_BEEN_SHUT_DOWN,
+    }
+
+    // Only for testing purposes
+    private Consumer<State> listener = state -> {};
+    void onStateChange(Consumer<State> listener) {
+        this.listener = listener;
     }
 }
