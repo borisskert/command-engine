@@ -133,7 +133,7 @@ public class BlockingQueueEngine implements Engine {
      * Factory methods
      **************************************************************************************************************** */
 
-    public static Engine serialExecutingEngine() {
+    public static Engine sequentialExecutingEngine() {
         return new BlockingQueueEngine(Executors.newSingleThreadExecutor());
     }
 

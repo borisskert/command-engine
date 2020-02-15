@@ -11,7 +11,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.fail;
 
-class SerialExecutingEngineTest {
+class SequentialExecutingEngineTest {
 
     private BlockingQueueEngine engine;
     private Object mutex;
@@ -19,7 +19,7 @@ class SerialExecutingEngineTest {
     @BeforeEach
     public void setup() throws Exception {
         mutex = new Object();
-        engine = (BlockingQueueEngine) BlockingQueueEngine.serialExecutingEngine();
+        engine = (BlockingQueueEngine) BlockingQueueEngine.sequentialExecutingEngine();
     }
 
     @Test
