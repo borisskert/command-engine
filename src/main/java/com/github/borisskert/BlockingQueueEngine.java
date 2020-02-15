@@ -138,7 +138,11 @@ public class BlockingQueueEngine implements Engine {
     }
 
     public static Engine parallelExecutingEngine() {
-        ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        int availableProcessors = Runtime.getRuntime().availableProcessors();
+        System.out.print("available processors: ");
+        System.out.println(availableProcessors);
+
+        ExecutorService executorService = Executors.newFixedThreadPool(availableProcessors);
         return new BlockingQueueEngine(executorService);
     }
 

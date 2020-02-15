@@ -6,6 +6,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -128,6 +133,27 @@ class ParallelExecutingEngineTest {
 
         assertThat(commandThree.isHasBeenExecuted(), is(equalTo(true)));
         assertThat(commandThree.getExecutions(), is(equalTo(1)));
+    }
+
+    @Test
+    public void shouldRunHundredCommandsAddedAfterStart() throws Exception {
+        startEngineInBackground();
+
+        List<TestCommand> commands = createTestCommands(100);
+        commands.forEach(c -> engine.add(c));
+
+        engine.shutdown();
+
+        commands.forEach(c -> {
+            assertThat(c.isHasBeenExecuted(), is(equalTo(true)));
+            assertThat(c.getExecutions(), is(equalTo(1)));
+        });
+    }
+
+    private List<TestCommand> createTestCommands(int max) {
+        return IntStream.range(0, max)
+                .mapToObj(i -> new TestCommand())
+                .collect(Collectors.toCollection(() -> new ArrayList<>(max)));
     }
 
     @Test
