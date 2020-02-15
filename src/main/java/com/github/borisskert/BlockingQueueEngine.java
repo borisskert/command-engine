@@ -6,17 +6,42 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
+/**
+ * Implements an {@link Engine} working with an {@link BlockingQueue}.
+ * Its {@link Engine#start()} and {@link Engine#shutdown()} methods are blocking the current thread.
+ */
 public class BlockingQueueEngine implements Engine {
+
+    /* *****************************************************************************************************************
+     * Readonly fields
+     **************************************************************************************************************** */
 
     private final ExecutorService executorService;
     private final BlockingQueue<Command> queue = new LinkedBlockingQueue<>();
-    private final Object synchronization = new Object();
+    private final Object mutex = new Object();
+
+    /* *****************************************************************************************************************
+     * Instance modifiable fields
+     **************************************************************************************************************** */
 
     private State state = State.CREATED;
 
+    /* *****************************************************************************************************************
+     * Constructor(s)
+     **************************************************************************************************************** */
+
+    /**
+     * Creates an instance. Prevent public creation.
+     *
+     * @param executorService the {@link ExecutorService} used to execute the commands
+     */
     private BlockingQueueEngine(ExecutorService executorService) {
         this.executorService = executorService;
     }
+
+    /* *****************************************************************************************************************
+     * Implementation of Engine
+     **************************************************************************************************************** */
 
     @Override
     public void add(Command command) {
@@ -57,6 +82,10 @@ public class BlockingQueueEngine implements Engine {
         changeState(State.HAS_BEEN_SHUT_DOWN);
     }
 
+    /* *****************************************************************************************************************
+     * Private methods
+     **************************************************************************************************************** */
+
     private void changeState(State state) {
         this.state = state;
         this.listener.accept(this.state);
@@ -67,8 +96,8 @@ public class BlockingQueueEngine implements Engine {
      */
     private void waitForRelease() {
         try {
-            synchronized (synchronization) {
-                synchronization.wait();
+            synchronized (mutex) {
+                mutex.wait();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -76,8 +105,8 @@ public class BlockingQueueEngine implements Engine {
     }
 
     private void release() {
-        synchronized (synchronization) {
-            synchronization.notify();
+        synchronized (mutex) {
+            mutex.notify();
         }
     }
 
@@ -100,6 +129,10 @@ public class BlockingQueueEngine implements Engine {
         }
     }
 
+    /* *****************************************************************************************************************
+     * Factory methods
+     **************************************************************************************************************** */
+
     public static Engine serialExecutingEngine() {
         return new BlockingQueueEngine(Executors.newSingleThreadExecutor());
     }
@@ -109,6 +142,14 @@ public class BlockingQueueEngine implements Engine {
         return new BlockingQueueEngine(executorService);
     }
 
+    /* *****************************************************************************************************************
+     * Inner class(es) and enum(s)
+     **************************************************************************************************************** */
+
+    /**
+     * Represents the state of a {@link BlockingQueueEngine}
+     * Package private because it's used in unit tests
+     */
     enum State {
         CREATED,
         RUNNING,
@@ -116,9 +157,21 @@ public class BlockingQueueEngine implements Engine {
         HAS_BEEN_SHUT_DOWN,
     }
 
+    /* *****************************************************************************************************************
+     * Code for easier testing
+     **************************************************************************************************************** */
+
     // Only for testing purposes
-    private Consumer<State> listener = state -> {};
-    void onStateChange(Consumer<State> listener) {
+    private Consumer<State> listener = state -> {
+    };
+
+    /**
+     * Register a listener for state changes. Every instance only can use one.
+     * The listener will be called when the {@link BlockingQueueEngine#state} of this {@link BlockingQueueEngine} changes.
+     *
+     * @param listener to be registered for state changes of this instance.
+     */
+    void registerStateChangeListener(Consumer<State> listener) {
         this.listener = listener;
     }
 }

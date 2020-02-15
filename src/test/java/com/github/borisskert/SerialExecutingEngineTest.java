@@ -149,7 +149,7 @@ class SerialExecutingEngineTest {
     }
 
     private void startEngineInBackground() {
-        engine.onStateChange(state -> release());
+        engine.registerStateChangeListener(state -> release());
 
         new Thread(() -> {
             engine.start();
